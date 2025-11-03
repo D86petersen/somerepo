@@ -12,6 +12,8 @@ export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [gameReminders, setGameReminders] = useState(true);
   const [weeklyResults, setWeeklyResults] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -24,6 +26,31 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
+  };
+
+  const handleSyncGames = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const response = await fetch('/api/sync-games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSyncMessage(`✓ Synced ${data.games} games for Week ${data.week}`);
+      } else {
+        setSyncMessage(`✗ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setSyncMessage('✗ Failed to sync games');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMessage(null), 5000);
+    }
   };
 
   return (
@@ -47,30 +74,48 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Pool Rules Section */}
+        {/* Admin Section - Sync Games */}
         <div>
+          <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Admin</h2>
+          <div className="space-y-2">
+            <button
+              onClick={() => router.push('/admin')}
+              className="w-full bg-slate-800/50 rounded-lg p-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚙️</span>
+                <span>Admin Panel</span>
+              </div>
+              <span className="text-slate-400">→</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Notifications</h2>
           <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Pool Rules</h2>
           <div className="space-y-2">
             <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
               <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined">help</span>
+                <span>❓</span>
                 <p>How to Play</p>
               </div>
-              <span className="material-symbols-outlined">chevron_right</span>
+              <span>›</span>
             </div>
             <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
               <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined">emoji_events</span>
+                <span>🏆</span>
                 <p>Scoring System</p>
               </div>
-              <span className="material-symbols-outlined">chevron_right</span>
+              <span>›</span>
             </div>
             <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
               <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined">schedule</span>
+                <span>⏰</span>
                 <p>Deadlines & Lock Times</p>
               </div>
-              <span className="material-symbols-outlined">chevron_right</span>
+              <span>›</span>
             </div>
           </div>
         </div>
@@ -99,10 +144,10 @@ export default function SettingsPage() {
           <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Account</h2>
           <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined">lock</span>
+              <span>🔒</span>
               <p>Change Password</p>
             </div>
-            <span className="material-symbols-outlined">chevron_right</span>
+            <span>›</span>
           </div>
         </div>
 
@@ -121,3 +166,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

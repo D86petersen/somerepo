@@ -9,7 +9,7 @@ const lexend = Lexend({
 });
 
 export const metadata: Metadata = {
-  title: "NFL Sports Pool",
+  title: "WiZiX NFL Sports Pool",
   description: "Your office pool, modernized.",
 };
 

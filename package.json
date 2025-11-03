@@ -12,7 +12,6 @@
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.44.4",
     "cookies-next": "^4.2.1",
-    "material-symbols": "^0.18.3",
     "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0"
@@ -22,6 +21,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@typescript-eslint/eslint-plugin": "^7.17.0",
+    "autoprefixer": "^10.4.21",
     "eslint": "^8",
     "eslint-config-next": "16.0.1",
     "postcss": "^8",
