@@ -55,7 +55,7 @@ export default function SignupPage() {
       <div className="relative z-10 flex w-full grow flex-col justify-center px-4 py-8 sm:px-6 md:px-8">
         <div className="mx-auto flex w-full max-w-md flex-col items-center">
           <div className="mb-6 flex items-center justify-center">
-            <span className="material-symbols-outlined text-white text-5xl">sports_football</span>
+            <h1 className="text-white text-5xl font-bold tracking-tight">WiZiX Degenerates</h1>
           </div>
           <h1 className="text-white tracking-light text-[32px] font-bold leading-tight text-center pb-8">Create Your Account</h1>
           <div className="w-full space-y-4">
