@@ -377,7 +377,7 @@ export default function AllPicksPage() {
             </div>
           )}
           <p className="text-sm text-slate-500 mt-4">
-            Check back after the deadline to see everyone's picks!
+            Check back after the deadline to see everyone&apos;s picks!
           </p>
         </div>
       ) : allUserPicks.length === 0 ? (
