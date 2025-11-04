@@ -49,7 +49,10 @@ export default function LoginPage() {
       <div className="relative z-10 flex w-full grow flex-col justify-center px-4 py-8 sm:px-6 md:px-8">
         <div className="mx-auto flex w-full max-w-md flex-col items-center">
           <div className="mb-6 flex items-center justify-center">
-            <h1 className="text-white text-5xl font-bold tracking-tight">WiZiX Degenerates</h1>
+            <h1 className="text-5xl font-bold tracking-tight">
+              <span className="bg-gradient-to-r from-red-500 to-white bg-clip-text text-transparent">WiZiX</span>
+              <span className="text-white"> Degenerates</span>
+            </h1>
           </div>
           <h1 className="text-white tracking-light text-[32px] font-bold leading-tight text-center pb-8">Your Office Pool Awaits</h1>
           <div className="w-full space-y-4">

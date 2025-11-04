@@ -30,7 +30,7 @@ export default function Header() {
                 className="rounded"
               />
               <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                <div className="text-2xl font-bold bg-gradient-to-r from-red-500 to-white bg-clip-text text-transparent">
                   WiZiX
                 </div>
                 <div className="text-lg font-semibold text-slate-400">
@@ -40,7 +40,7 @@ export default function Header() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold bg-gradient-to-r from-red-500 to-white bg-clip-text text-transparent">
                 WiZiX
               </div>
               <div className="text-lg font-semibold text-slate-400">
