@@ -14,13 +14,28 @@ export default function SettingsPage() {
   const [weeklyResults, setWeeklyResults] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [rules, setRules] = useState<string>('');
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     };
+    
+    const loadRules = async () => {
+      const { data } = await supabase
+        .from('pool_settings')
+        .select('rules')
+        .single();
+      
+      if (data?.rules) {
+        setRules(data.rules);
+      }
+    };
+    
     getUser();
+    loadRules();
   }, [supabase.auth]);
 
   const handleLogout = async () => {
@@ -91,31 +106,31 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Notifications */}
+        {/* Pool Rules */}
         <div>
-          <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Notifications</h2>
           <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Pool Rules</h2>
           <div className="space-y-2">
-            <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
-              <div className="flex items-center gap-4">
-                <span>❓</span>
-                <p>How to Play</p>
+            <div 
+              onClick={() => setShowRules(!showRules)}
+              className="bg-slate-800/50 rounded-lg p-4 cursor-pointer hover:bg-slate-800"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-4">
+                  <span>📜</span>
+                  <p className="font-semibold">Pool Rules & Scoring</p>
+                </div>
+                <span className="transform transition-transform">{showRules ? '▼' : '›'}</span>
               </div>
-              <span>›</span>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
-              <div className="flex items-center gap-4">
-                <span>🏆</span>
-                <p>Scoring System</p>
-              </div>
-              <span>›</span>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800">
-              <div className="flex items-center gap-4">
-                <span>⏰</span>
-                <p>Deadlines & Lock Times</p>
-              </div>
-              <span>›</span>
+              {showRules && rules && (
+                <div className="mt-4 pt-4 border-t border-slate-700 text-sm text-slate-300 whitespace-pre-wrap">
+                  {rules}
+                </div>
+              )}
+              {showRules && !rules && (
+                <div className="mt-4 pt-4 border-t border-slate-700 text-sm text-slate-400 italic">
+                  No rules have been set yet. Contact your pool administrator.
+                </div>
+              )}
             </div>
           </div>
         </div>

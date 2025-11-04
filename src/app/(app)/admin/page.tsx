@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
+const ADMIN_EMAIL = 'd86petersen@gmail.com';
+
 export default function AdminPage() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string>('');
   const [weekInput, setWeekInput] = useState('10');
@@ -12,8 +16,60 @@ export default function AdminPage() {
   const [dbStats, setDbStats] = useState<any>(null);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState<string>('');
-  const [weeksToKeep, setWeeksToKeep] = useState('2');
-  const [availableWeeks, setAvailableWeeks] = useState<any[]>([]);
+  const [rules, setRules] = useState('');
+  const [savingRules, setSavingRules] = useState(false);
+
+  useEffect(() => {
+    async function checkAdmin() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        setIsAdmin(true);
+        loadRules();
+      } else {
+        setIsAdmin(false);
+      }
+      
+      setAuthLoading(false);
+    }
+
+    checkAdmin();
+  }, []);
+
+  const loadRules = async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('pool_settings')
+      .select('rules')
+      .single();
+    
+    if (data?.rules) {
+      setRules(data.rules);
+    }
+  };
+
+  const saveRules = async () => {
+    setSavingRules(true);
+    const supabase = createClient();
+    
+    const { error } = await supabase
+      .from('pool_settings')
+      .upsert({ id: 1, rules }, { onConflict: 'id' });
+    
+    if (error) {
+      alert('Error saving rules: ' + error.message);
+    } else {
+      alert('✅ Rules saved successfully!');
+    }
+    
+    setSavingRules(false);
+  };
 
   const handleSyncGames = async () => {
     setSyncing(true);
@@ -82,58 +138,60 @@ export default function AdminPage() {
     }
   };
 
-  const handleCleanupOldWeeks = async () => {
-    setCleanupLoading(true);
-    setCleanupMessage('Cleaning up old weeks...');
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-slate-400">Checking access...</p>
+        </div>
+      </div>
+    );
+  }
 
-    try {
-      const response = await fetch(`/api/cleanup-old-weeks?weeksToKeep=${weeksToKeep}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        setCleanupMessage(`✅ Success! Deleted ${data.deletedPicks} picks and ${data.deletedGames} games from ${data.weeksDeleted.length} old week(s)`);
-        // Refresh database stats
-        checkDatabase();
-      } else {
-        setCleanupMessage(`❌ Error: ${data.error || 'Failed to cleanup'}`);
-      }
-    } catch (error: any) {
-      setCleanupMessage(`❌ Error: ${error.message}`);
-    } finally {
-      setCleanupLoading(false);
-    }
-  };
-
-  const previewCleanup = async () => {
-    setCleanupLoading(true);
-    setCleanupMessage('Checking what would be deleted...');
-
-    try {
-      const response = await fetch(`/api/cleanup-old-weeks?weeksToKeep=${weeksToKeep}`, {
-        method: 'GET',
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        setCleanupMessage(`📋 Would delete: ${data.gamesCount} games and ${data.picksCount} picks from weeks: ${data.weeksToDelete.map((w: any) => `W${w.week}`).join(', ')}`);
-      } else {
-        setCleanupMessage(`❌ Error: ${data.error || 'Failed to preview'}`);
-      }
-    } catch (error: any) {
-      setCleanupMessage(`❌ Error: ${error.message}`);
-    } finally {
-      setCleanupLoading(false);
-    }
-  };
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center bg-red-900/20 border border-red-500 rounded-lg p-8 max-w-md">
+          <h1 className="text-2xl font-bold mb-4 text-red-400">⛔ Access Denied</h1>
+          <p className="text-slate-300 mb-4">You do not have permission to access the admin panel.</p>
+          <button
+            onClick={() => window.location.href = '/picks'}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700"
+          >
+            Return to Picks
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Admin / Debug Page</h1>
+
+      {/* Pool Rules Editor */}
+      <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <span>📋</span> Pool Rules Editor
+        </h2>
+        <p className="text-sm text-slate-400 mb-4">
+          Edit the pool rules that appear in the Settings page for all users.
+        </p>
+        <textarea
+          value={rules}
+          onChange={(e) => setRules(e.target.value)}
+          className="w-full bg-slate-700 rounded px-3 py-2 text-white min-h-[200px] font-mono text-sm"
+          placeholder="Enter pool rules here..."
+        />
+        <button
+          onClick={saveRules}
+          disabled={savingRules}
+          className="mt-3 w-full bg-green-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+        >
+          {savingRules ? 'Saving...' : '💾 Save Rules'}
+        </button>
+      </div>
 
       {/* Sync Games Section */}
       <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
@@ -246,82 +304,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Delete Specific Weeks */}
-        <div className="mb-6 p-4 bg-orange-900/20 border border-orange-500 rounded">
-          <h3 className="font-semibold mb-2 flex items-center gap-2">
-            <span>📅</span> Delete Specific Weeks
-          </h3>
-          <p className="text-sm text-slate-300 mb-3">
-            View and delete specific weeks (e.g., delete old 2024 weeks).
-          </p>
-          <button
-            onClick={async () => {
-              setCleanupLoading(true);
-              try {
-                const res = await fetch('/api/delete-weeks');
-                const data = await res.json();
-                setAvailableWeeks(data.weeksBySeason || []);
-                setCleanupMessage(`Found weeks: ${JSON.stringify(data.weeksBySeason)}`);
-              } catch (error: any) {
-                setCleanupMessage(`❌ Error: ${error.message}`);
-              } finally {
-                setCleanupLoading(false);
-              }
-            }}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold disabled:opacity-50 mb-3"
-            disabled={cleanupLoading}
-          >
-            {cleanupLoading ? 'Loading...' : 'Show Available Weeks'}
-          </button>
-          
-          {availableWeeks.length > 0 && (
-            <div className="space-y-2">
-              {availableWeeks.map((seasonData: any) => (
-                <div key={seasonData.season} className="bg-slate-700 rounded p-3">
-                  <p className="font-semibold mb-2">Season {seasonData.season}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {seasonData.weeks.map((week: number) => (
-                      <button
-                        key={week}
-                        onClick={async () => {
-                          if (!confirm(`Delete Week ${week} from ${seasonData.season}?`)) return;
-                          setCleanupLoading(true);
-                          try {
-                            const res = await fetch('/api/delete-weeks', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ weeks: [week], season: seasonData.season }),
-                            });
-                            const data = await res.json();
-                            if (res.ok) {
-                              setCleanupMessage(`✅ Deleted week ${week}: ${data.deletedGames} games, ${data.deletedPicks} picks`);
-                              // Refresh weeks list
-                              const refreshRes = await fetch('/api/delete-weeks');
-                              const refreshData = await refreshRes.json();
-                              setAvailableWeeks(refreshData.weeksBySeason || []);
-                              checkDatabase();
-                            } else {
-                              setCleanupMessage(`❌ Error: ${data.error}`);
-                            }
-                          } catch (error: any) {
-                            setCleanupMessage(`❌ Error: ${error.message}`);
-                          } finally {
-                            setCleanupLoading(false);
-                          }
-                        }}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-                        disabled={cleanupLoading}
-                      >
-                        Delete W{week}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Auto Cleanup - Keep only current week */}
         <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500 rounded">
           <h3 className="font-semibold mb-2 flex items-center gap-2">
@@ -376,40 +358,6 @@ export default function AdminPage() {
               {cleanupLoading ? 'Cleaning...' : 'Run Auto-Cleanup'}
             </button>
           </div>
-        </div>
-
-        {/* Manual Cleanup - Keep N weeks */}
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Manual Cleanup (Advanced)</h3>
-          <label className="block text-sm text-slate-400 mb-2">Weeks to Keep</label>
-          <input
-            type="number"
-            value={weeksToKeep}
-            onChange={(e) => setWeeksToKeep(e.target.value)}
-            className="w-full bg-slate-700 rounded px-3 py-2 text-white"
-            min="1"
-            max="10"
-          />
-          <p className="text-xs text-slate-400 mt-1">
-            All weeks older than the most recent {weeksToKeep} will be deleted
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <button
-            onClick={previewCleanup}
-            disabled={cleanupLoading}
-            className="bg-blue-600 text-white py-2 rounded-lg font-semibold disabled:opacity-50"
-          >
-            {cleanupLoading ? 'Checking...' : 'Preview Cleanup'}
-          </button>
-          <button
-            onClick={handleCleanupOldWeeks}
-            disabled={cleanupLoading}
-            className="bg-red-600 text-white py-2 rounded-lg font-semibold disabled:opacity-50"
-          >
-            {cleanupLoading ? 'Deleting...' : 'Delete Old Weeks'}
-          </button>
         </div>
 
         {cleanupMessage && (
