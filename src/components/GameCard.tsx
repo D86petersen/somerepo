@@ -1,8 +1,23 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import type { Game } from '@/types';
 import Image from 'next/image';
 
 export default function GameCard({ game }: { game: Game }) {
   const { homeTeam, awayTeam, gameTime, status, homeScore, awayScore, quarter, timeRemaining } = game;
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update clock every second for live games
+  useEffect(() => {
+    if (status === 'live') {
+      const interval = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [status]);
 
   const gameDate = new Date(gameTime);
   const gameDay = gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -12,6 +27,19 @@ export default function GameCard({ game }: { game: Game }) {
   const isFinal = status === 'final';
   const homeWinning = homeScore > awayScore;
   const awayWinning = awayScore > homeScore;
+
+  // Format live clock (how long the game has been going)
+  const getElapsedTime = () => {
+    const gameStart = new Date(gameTime);
+    const elapsed = Math.floor((currentTime.getTime() - gameStart.getTime()) / 1000 / 60); // minutes
+    const hours = Math.floor(elapsed / 60);
+    const minutes = elapsed % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
 
   return (
     <div className="bg-slate-800/50 rounded-lg p-4 mb-3">
@@ -25,7 +53,17 @@ export default function GameCard({ game }: { game: Game }) {
         }`}>
           {isLive && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
           {status === 'upcoming' && 'Upcoming'}
-          {isLive && quarter && `${quarter}${timeRemaining ? ` - ${timeRemaining}` : ''}`}
+          {isLive && (
+            <div className="flex flex-col items-end">
+              <div className="flex items-center gap-1">
+                {quarter && `${quarter}`}
+                {timeRemaining && ` - ${timeRemaining}`}
+              </div>
+              <div className="text-[10px] text-red-400 opacity-80 font-mono">
+                ⏱ {getElapsedTime()} elapsed
+              </div>
+            </div>
+          )}
           {isFinal && 'Final'}
         </div>
       </div>

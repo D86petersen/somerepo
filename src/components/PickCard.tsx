@@ -13,6 +13,7 @@ interface PickCardProps {
 
 export default function PickCard({ game, initialPick, onPickChange, disabled = false }: PickCardProps) {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(initialPick || null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update selected team if initial pick changes (e.g., from database)
   useEffect(() => {
@@ -20,6 +21,17 @@ export default function PickCard({ game, initialPick, onPickChange, disabled = f
       setSelectedTeam(initialPick);
     }
   }, [initialPick]);
+
+  // Update clock every second for live games
+  useEffect(() => {
+    if (game.status === 'live') {
+      const interval = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [game.status]);
 
   const handlePick = (team: Team) => {
     if (disabled || isGameLocked) return;
@@ -34,6 +46,19 @@ export default function PickCard({ game, initialPick, onPickChange, disabled = f
     (game.awayScore > game.homeScore && selectedTeam === game.awayTeam.id)
   );
   const isWrongPick = isGameFinal && selectedTeam && !isCorrectPick;
+
+  // Format live clock (how long the game has been going)
+  const getElapsedTime = () => {
+    const gameStart = new Date(game.gameTime);
+    const elapsed = Math.floor((currentTime.getTime() - gameStart.getTime()) / 1000 / 60); // minutes
+    const hours = Math.floor(elapsed / 60);
+    const minutes = elapsed % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
 
   return (
     <div className={`bg-slate-800/50 rounded-lg p-4 mb-4 border-2 ${
@@ -61,10 +86,15 @@ export default function PickCard({ game, initialPick, onPickChange, disabled = f
             <span className="font-bold text-orange-500">🔒 Locked</span>
           )}
           {game.status === 'live' && (
-            <span className="font-bold text-red-500 flex items-center gap-1">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              Live
-            </span>
+            <div className="font-bold text-red-500 flex flex-col items-end gap-0.5">
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                Live
+              </div>
+              <div className="text-[10px] text-red-400 opacity-80 font-mono">
+                ⏱ {getElapsedTime()}
+              </div>
+            </div>
           )}
           {isGameFinal && (
             <span className="font-bold text-slate-400">Final</span>
