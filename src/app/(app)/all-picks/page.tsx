@@ -31,6 +31,9 @@ export default function AllPicksPage() {
   const [loading, setLoading] = useState(true);
   const [isPastDeadline, setIsPastDeadline] = useState(false);
   const [deadlineTime, setDeadlineTime] = useState<Date | null>(null);
+  const [autoSyncing, setAutoSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [hasLiveGames, setHasLiveGames] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -298,6 +301,138 @@ export default function AllPicksPage() {
     };
   }, [currentWeek]);
 
+  // Auto-sync with ESPN every 30 seconds to get live scores
+  useEffect(() => {
+    if (!currentWeek) return;
+
+    let intervalId: NodeJS.Timeout;
+
+    async function syncWithESPN() {
+      try {
+        setAutoSyncing(true);
+        
+        const response = await fetch('/api/sync-games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            week: currentWeek,
+            year: 2025,
+          }),
+        });
+
+        if (response.ok) {
+          setLastSyncTime(new Date());
+          console.log(`✅ Auto-synced Week ${currentWeek} at ${new Date().toLocaleTimeString()}`);
+          
+          // Reload picks after sync to get updated scores
+          const supabase = createClient();
+          const { data: picksData } = await supabase
+            .from('picks')
+            .select(`
+              *,
+              user:users(id, email, full_name),
+              game:games(
+                id,
+                week,
+                home_score,
+                away_score,
+                status,
+                game_time,
+                home_team:teams!games_home_team_id_fkey(id, name, logo_url),
+                away_team:teams!games_away_team_id_fkey(id, name, logo_url)
+              )
+            `);
+
+          if (picksData) {
+            const userPicksMap = new Map<string, UserPicks>();
+            let liveGamesFound = false;
+
+            picksData.forEach((pick: any) => {
+              if (pick.game.week !== currentWeek) return;
+              
+              if (pick.game.status === 'live') liveGamesFound = true;
+
+              const userId = pick.user.id;
+              const userName = pick.user.full_name || pick.user.email.split('@')[0];
+              const userEmail = pick.user.email;
+
+              if (!userPicksMap.has(userId)) {
+                userPicksMap.set(userId, {
+                  userId,
+                  userName,
+                  userEmail,
+                  picks: [],
+                  correctPicks: 0,
+                  totalPicks: 0,
+                });
+              }
+
+              const userPicks = userPicksMap.get(userId)!;
+              
+              let isCorrect: boolean | null = null;
+              if (pick.game.status === 'final') {
+                const homeWon = pick.game.home_score > pick.game.away_score;
+                const awayWon = pick.game.away_score > pick.game.home_score;
+                
+                if (homeWon && pick.selected_team_id === pick.game.home_team.id) {
+                  isCorrect = true;
+                } else if (awayWon && pick.selected_team_id === pick.game.away_team.id) {
+                  isCorrect = true;
+                } else {
+                  isCorrect = false;
+                }
+
+                if (isCorrect) userPicks.correctPicks++;
+                userPicks.totalPicks++;
+              }
+
+              userPicks.picks.push({
+                gameId: pick.game.id,
+                selectedTeamId: pick.selected_team_id,
+                homeTeam: {
+                  id: pick.game.home_team.id,
+                  name: pick.game.home_team.name,
+                  logoUrl: pick.game.home_team.logo_url,
+                },
+                awayTeam: {
+                  id: pick.game.away_team.id,
+                  name: pick.game.away_team.name,
+                  logoUrl: pick.game.away_team.logo_url,
+                },
+                homeScore: pick.game.home_score,
+                awayScore: pick.game.away_score,
+                status: pick.game.status,
+                gameTime: pick.game.game_time,
+                isCorrect,
+              });
+            });
+
+            const userPicksArray = Array.from(userPicksMap.values()).sort(
+              (a, b) => b.correctPicks - a.correctPicks
+            );
+
+            setAllUserPicks(userPicksArray);
+            setHasLiveGames(liveGamesFound);
+          }
+        }
+      } catch (error) {
+        console.error('Auto-sync error:', error);
+      } finally {
+        setAutoSyncing(false);
+      }
+    }
+
+    // Always auto-sync - check every 30 seconds for score updates
+    syncWithESPN(); // Initial sync
+    intervalId = setInterval(syncWithESPN, 30000); // Every 30 seconds
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [currentWeek]);
+
   if (loading) {
     return (
       <div className="p-4 flex items-center justify-center min-h-screen">
@@ -311,6 +446,19 @@ export default function AllPicksPage() {
 
   return (
     <div className="p-4 pb-24">
+      {/* Auto-sync indicator */}
+      <div className="mb-4 bg-blue-900/20 border border-blue-500 rounded-lg p-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span className="text-sm text-slate-300">Auto-syncing scores every 30 seconds</span>
+        </div>
+        {lastSyncTime && (
+          <span className="text-xs text-slate-400">
+            Last updated: {lastSyncTime.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
       {/* Week Selector */}
       <div className="flex justify-between items-center mb-6">
         <div>

@@ -96,14 +96,12 @@ export default function SchedulePage() {
       }
     }
 
-    // Only auto-sync if there are games with live or upcoming status
-    const hasLiveGames = games.some(g => g.status === 'live' || g.status === 'upcoming');
-    
-    if (hasLiveGames && currentWeek > 0) {
+    // Always auto-sync - continuous real-time updates
+    if (currentWeek > 0) {
       // Initial sync
       syncWithESPN();
       
-      // Set up interval for every 30 seconds
+      // Set up interval for every 30 seconds (continuous)
       intervalId = setInterval(syncWithESPN, 30000);
     }
 
@@ -112,7 +110,7 @@ export default function SchedulePage() {
         clearInterval(intervalId);
       }
     };
-  }, [currentWeek, games]);
+  }, [currentWeek]);
 
   if (loading) {
     return (
@@ -139,20 +137,18 @@ export default function SchedulePage() {
 
   return (
     <div className="p-4 pb-24">
-      {/* Auto-sync indicator */}
-      {games.some(g => g.status === 'live' || g.status === 'upcoming') && (
-        <div className="mb-4 bg-blue-900/20 border border-blue-500 rounded-lg p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="text-sm text-slate-300">Auto-syncing scores every 30 seconds</span>
-          </div>
-          {lastSyncTime && (
-            <span className="text-xs text-slate-400">
-              Last updated: {lastSyncTime.toLocaleTimeString()}
-            </span>
-          )}
+      {/* Auto-sync indicator - always show */}
+      <div className="mb-4 bg-blue-900/20 border border-blue-500 rounded-lg p-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span className="text-sm text-slate-300">Auto-syncing scores every 30 seconds</span>
         </div>
-      )}
+        {lastSyncTime && (
+          <span className="text-xs text-slate-400">
+            Last updated: {lastSyncTime.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
 
       {/* Week Selector */}
       <div className="flex justify-between items-center mb-6">
