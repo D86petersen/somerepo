@@ -8,7 +8,6 @@ import type { User } from '@supabase/supabase-js';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [gameReminders, setGameReminders] = useState(true);
   const [weeklyResults, setWeeklyResults] = useState(false);
@@ -18,6 +17,8 @@ export default function SettingsPage() {
   const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
+    
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -36,9 +37,10 @@ export default function SettingsPage() {
     
     getUser();
     loadRules();
-  }, [supabase.auth]);
+  }, []);
 
   const handleLogout = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/login');
   };

@@ -123,6 +123,8 @@ export default function PicksPage() {
     let intervalId: NodeJS.Timeout;
 
     async function syncWithESPN() {
+      if (!userId) return;
+      
       try {
         setAutoSyncing(true);
         
@@ -137,9 +139,21 @@ export default function PicksPage() {
         });
 
         if (response.ok) {
-          // Reload games after successful sync
-          const gamesData = await fetchGames(currentWeek);
+          // Reload games AND picks after successful sync to keep everything in sync
+          const [gamesData, picksData] = await Promise.all([
+            fetchGames(currentWeek),
+            fetchUserPicks(userId, currentWeek),
+          ]);
+          
           setGames(gamesData);
+          setPicks(picksData);
+          
+          // Restore tie breaker if it exists
+          const tbPick = picksData.find(p => p.tieBreaker !== null);
+          if (tbPick) {
+            setTieBreaker(tbPick.tieBreaker);
+          }
+          
           setLastSyncTime(new Date());
           console.log(`✅ Auto-synced Week ${currentWeek} at ${new Date().toLocaleTimeString()}`);
         }
@@ -153,7 +167,7 @@ export default function PicksPage() {
     // Only auto-sync if there are games with live or upcoming status
     const hasLiveGames = games.some(g => g.status === 'live' || g.status === 'upcoming');
     
-    if (hasLiveGames && currentWeek > 0) {
+    if (hasLiveGames && currentWeek > 0 && userId) {
       // Initial sync
       syncWithESPN();
       
@@ -166,7 +180,7 @@ export default function PicksPage() {
         clearInterval(intervalId);
       }
     };
-  }, [currentWeek, games]);
+  }, [currentWeek, games, userId]);
 
   const handlePickChange = (gameId: string, selectedTeamId: string) => {
     setPicks(prevPicks => {
@@ -196,16 +210,17 @@ export default function PicksPage() {
       const result = await saveMultiplePicks(userId, picksToSave);
 
       if (result.success) {
-        setMessage({ type: 'success', text: '✅ Picks saved successfully! Redirecting to all picks...' });
+        setMessage({ type: 'success', text: '✅ Picks saved successfully!' });
         
-        // Clear selections
-        setPicks([]);
-        setTieBreaker(null);
+        // Reload picks to confirm they were saved
+        const updatedPicks = await fetchUserPicks(userId, currentWeek);
+        setPicks(updatedPicks);
         
-        // Redirect to all picks page after 1.5 seconds
-        setTimeout(() => {
-          window.location.href = '/all-picks';
-        }, 1500);
+        // Find tie breaker from saved picks
+        const tbPick = updatedPicks.find(p => p.tieBreaker !== null);
+        if (tbPick) {
+          setTieBreaker(tbPick.tieBreaker);
+        }
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to save picks' });
       }
