@@ -20,6 +20,8 @@ export default function PicksPage() {
   const [availableWeeks, setAvailableWeeks] = useState<number[]>([]);
   const [isPastDeadline, setIsPastDeadline] = useState(false);
   const [deadlineTime, setDeadlineTime] = useState<Date | null>(null);
+  const [autoSyncing, setAutoSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   // Get current user
   useEffect(() => {
@@ -115,6 +117,56 @@ export default function PicksPage() {
       channel.unsubscribe();
     };
   }, [currentWeek]);
+
+  // Auto-sync with ESPN every 30 seconds
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    async function syncWithESPN() {
+      try {
+        setAutoSyncing(true);
+        
+        // Call the sync API for the current week
+        const response = await fetch('/api/sync-games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            week: currentWeek,
+            year: 2025,
+          }),
+        });
+
+        if (response.ok) {
+          // Reload games after successful sync
+          const gamesData = await fetchGames(currentWeek);
+          setGames(gamesData);
+          setLastSyncTime(new Date());
+          console.log(`✅ Auto-synced Week ${currentWeek} at ${new Date().toLocaleTimeString()}`);
+        }
+      } catch (error) {
+        console.error('Auto-sync error:', error);
+      } finally {
+        setAutoSyncing(false);
+      }
+    }
+
+    // Only auto-sync if there are games with live or upcoming status
+    const hasLiveGames = games.some(g => g.status === 'live' || g.status === 'upcoming');
+    
+    if (hasLiveGames && currentWeek > 0) {
+      // Initial sync
+      syncWithESPN();
+      
+      // Set up interval for every 30 seconds
+      intervalId = setInterval(syncWithESPN, 30000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [currentWeek, games]);
 
   const handlePickChange = (gameId: string, selectedTeamId: string) => {
     setPicks(prevPicks => {
@@ -218,6 +270,21 @@ export default function PicksPage() {
 
   return (
     <div className="p-4 pb-24">
+      {/* Auto-sync indicator */}
+      {games.some(g => g.status === 'live' || g.status === 'upcoming') && (
+        <div className="mb-4 bg-blue-900/20 border border-blue-500 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span className="text-sm text-slate-300">Auto-syncing scores every 30 seconds</span>
+          </div>
+          {lastSyncTime && (
+            <span className="text-xs text-slate-400">
+              Last updated: {lastSyncTime.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Week Selector */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
